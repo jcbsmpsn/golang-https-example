@@ -25,7 +25,7 @@ func main() {
 		},
 	}
 
-	resp, err := client.Get("https://127.0.0.1:8443")
+	resp, err := client.Get("https://localhost:8443")
 	if err != nil {
 		log.Println(err)
 		return

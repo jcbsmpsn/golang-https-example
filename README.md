@@ -12,7 +12,7 @@ Golang sample code for a minimal HTTPS client and server that demos:
 ## Generating Keys
 
 ```sh
-openssl req -x509 -nodes -newkey rsa:2048 -keyout server.key -out server.crt -days 3650
+openssl req -x509 -nodes -newkey rsa:2048 -keyout server.key -out server.crt -days 3650 -subj "/C=GB/ST=London/L=London/O=Global Security/OU=IT Department/CN=*"
 ```
 
 ## Running the Server
@@ -80,5 +80,70 @@ There are two possible solutions.
     +                       },
                     },
             }
+    ```
+
+**Error:** `x509: invalid signature: parent certificate cannot sign this kind of certificate`
+
+**Solution:** The wrong kind of server certificate was generated. The property
+in the CA that signed the server certificate indicates that the signing
+certificate is not a CA. Since this is a self signed server certificate, it
+needs the signing permission to sign itself.
+
+Using `openssl x509 -in server.crt -text -noout` to look at the details of the
+server certificate reveals that it is missing the CA flag, which should look
+like this:
+
+```
+            X509v3 Basic Constraints:
+                CA:TRUE
+```
+
+**Error:** `x509: cannot validate certificate for 127.0.0.1 because it doesn't contain any IP SANs`
+
+**Solution:** A SAN is a Subject Alternative Name, an x509 extension that
+allows additional names to be specified as valid domains for the certficate.
+
+Starting with Go 1.3, when connecting to a server via the IP address rather
+than the hostname, the CN field in the server certificate is ignored by the
+client golang libraries and names specified as SANs will be used instead.
+
+Using `openssl x509 -in server.crt -text -noout` to look at the details of the
+server certificate reveals that it is missing a SAN section, which should look
+like this:
+
+```
+        X509v3 extensions:
+            X509v3 Subject Alternative Name:
+                IP Address:127.0.0.1
+```
+
+There are two possible solutions.
+
+1. Use a name to connect to the server instead of an IP address. If the client
+   connects with a name matching the certificate CN, a SAN is not required.
+
+    ```diff
+    -       resp, err := client.Get("https://127.0.0.1:8443")
+    +       resp, err := client.Get("https://localhost:8443")
+    ```
+
+    Using `openssl x509 -in server.crt -text -noout` to look at the **Subject**
+    line should show **CN=** matching the name of the server. `localhost` or
+    `*` will work.
+
+    ```
+            Subject: CN=*
+    ```
+
+2. Add a SAN to the certificate with the IP address of the server.
+
+    To add a SAN to a certificate, there is multiple steps required, that will
+    generate a separate CA and use that to sign the server certificate signing
+    request.
+
+    ```sh
+    openssl req -newkey rsa:2048 -nodes -days 3650 -x509 -keyout ca.key -out ca.crt -subj "/CN=*"
+    openssl req -newkey rsa:2048 -nodes -keyout server.key -out server.csr -subj "/C=GB/ST=London/L=London/O=Global Security/OU=IT Department/CN=*"
+    openssl x509 -req -days 365 -sha256 -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out server.crt -extfile <(echo subjectAltName = IP:127.0.0.1)
     ```
 
