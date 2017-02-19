@@ -147,3 +147,55 @@ There are two possible solutions.
     openssl x509 -req -days 365 -sha256 -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out server.crt -extfile <(echo subjectAltName = IP:127.0.0.1)
     ```
 
+**Error:** `tls: client didn't provide a certificate`
+
+**Solution:** When the server code has the option set to authenticate client
+connections using the client certificate, the server will drop connections from
+clients using certs that are untrusted.
+
+```diff
+-       cfg := &tls.Config{}
++       cfg := &tls.Config{
++               ClientAuth: tls.RequireAndVerifyClientCert,
++       }
+```
+
+Generate a client certificate to use:
+
+```sh
+openssl req -x509 -nodes -newkey rsa:2048 -keyout client.key -out client.crt -days 3650 -subj "/C=GB/ST=London/L=London/O=Global Security/OU=IT Department/CN=*"
+```
+
+The client has to be configured to send a certificate with connection attempts:
+
+```diff
++       cert, err := tls.LoadX509KeyPair("client.crt", "client.key")
++       if err != nil {
++               log.Fatal(err)
++       }
++
+        client := &http.Client{
+                Transport: &http.Transport{
+                        TLSClientConfig: &tls.Config{
+                                RootCAs:      caCertPool,
++                               Certificates: []tls.Certificate{cert},
+                        },
+                },
+        }
+```
+
+And the server has to be configured to trust the client certificate:
+
+```diff
++       caCert, err := ioutil.ReadFile("client.crt")
++       if err != nil {
++               log.Fatal(err)
++       }
++       caCertPool := x509.NewCertPool()
++       caCertPool.AppendCertsFromPEM(caCert)
+        cfg := &tls.Config{
+                ClientAuth: tls.RequireAndVerifyClientCert,
++               ClientCAs:  caCertPool,
+        }
+```
+

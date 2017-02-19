@@ -2,12 +2,23 @@ package main
 
 import (
 	"crypto/tls"
+	"crypto/x509"
+	"io/ioutil"
 	"log"
 	"net/http"
 )
 
 func main() {
-	cfg := &tls.Config{}
+	caCert, err := ioutil.ReadFile("client.crt")
+	if err != nil {
+		log.Fatal(err)
+	}
+	caCertPool := x509.NewCertPool()
+	caCertPool.AppendCertsFromPEM(caCert)
+	cfg := &tls.Config{
+		ClientAuth: tls.RequireAndVerifyClientCert,
+		ClientCAs:  caCertPool,
+	}
 	srv := &http.Server{
 		Addr:      ":8443",
 		Handler:   &handler{},
