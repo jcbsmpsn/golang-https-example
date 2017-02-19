@@ -31,7 +31,54 @@ go run https_client.go
 
 **Error:** `x509: certificate signed by unknown authority`
 
-**Solution:** The certificate served by https_server is self signed. This message
-means that the Go lang https library can't find a way to trust the certificate
-the server is responding with.
+**Solution:** The certificate served by https_server is self signed. This
+message means that the Go lang https library can't find a way to trust the
+certificate the server is responding with.
+
+There are two possible solutions.
+
+1. Disable the client side certificate verification. This solution has the
+   advantage of expediency, but the disadvantage of making your client code
+   susceptible to man in the middle attacks.
+
+    ```diff
+    @@ -11,7 +11,9 @@ import (
+     func main() {
+            client := &http.Client{
+                    Transport: &http.Transport{
+    -                       TLSClientConfig: &tls.Config{},
+    +                       TLSClientConfig: &tls.Config{
+    +                               InsecureSkipVerify: true,
+    +                       },
+                    },
+            }
+    ```
+
+    Add the server certificate to the list of certificate authorities that the
+    client trusts.
+
+2. Add the server certificate to the list of certificate authorities trusted by
+   the client.
+
+    ```diff
+    @@ -9,9 +10,18 @@ import (
+     )
+
+     func main() {
+    +       caCert, err := ioutil.ReadFile("server.crt")
+    +       if err != nil {
+    +               log.Fatal(err)
+    +       }
+    +       caCertPool := x509.NewCertPool()
+    +       caCertPool.AppendCertsFromPEM(caCert)
+    +
+            client := &http.Client{
+                    Transport: &http.Transport{
+    -                       TLSClientConfig: &tls.Config{},
+    +                       TLSClientConfig: &tls.Config{
+    +                               RootCAs: caCertPool,
+    +                       },
+                    },
+            }
+    ```
 
