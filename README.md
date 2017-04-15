@@ -9,10 +9,17 @@ Golang sample code for a minimal HTTPS client and server that demos:
 * a server that authenticates the client based on the client certificate used
   in connection negotiation.
 
-## Generating Keys
+## Generating Key and Self Signed Cert
 
 ```sh
-openssl req -x509 -nodes -newkey rsa:2048 -keyout server.key -out server.crt -days 3650 -subj "/C=GB/ST=London/L=London/O=Global Security/OU=IT Department/CN=*"
+openssl req \
+    -x509 \
+    -nodes \
+    -newkey rsa:2048 \
+    -keyout server.key \
+    -out server.crt \
+    -days 3650 \
+    -subj "/C=GB/ST=London/L=London/O=Global Security/OU=IT Department/CN=*"
 ```
 
 ## Running the Server
@@ -53,9 +60,6 @@ There are two possible solutions.
                     },
             }
     ```
-
-    Add the server certificate to the list of certificate authorities that the
-    client trusts.
 
 2. Add the server certificate to the list of certificate authorities trusted by
    the client.
@@ -142,9 +146,30 @@ There are two possible solutions.
     request.
 
     ```sh
-    openssl req -newkey rsa:2048 -nodes -days 3650 -x509 -keyout ca.key -out ca.crt -subj "/CN=*"
-    openssl req -newkey rsa:2048 -nodes -keyout server.key -out server.csr -subj "/C=GB/ST=London/L=London/O=Global Security/OU=IT Department/CN=*"
-    openssl x509 -req -days 365 -sha256 -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out server.crt -extfile <(echo subjectAltName = IP:127.0.0.1)
+    openssl req \
+        -newkey rsa:2048 \
+        -nodes \
+        -days 3650 \
+        -x509 \
+        -keyout ca.key \
+        -out ca.crt \
+        -subj "/CN=*"
+    openssl req \
+        -newkey rsa:2048 \
+        -nodes \
+        -keyout server.key \
+        -out server.csr \
+        -subj "/C=GB/ST=London/L=London/O=Global Security/OU=IT Department/CN=*"
+    openssl x509 \
+        -req \
+        -days 365 \
+        -sha256 \
+        -in server.csr \
+        -CA ca.crt \
+        -CAkey ca.key \
+        -CAcreateserial \
+        -out server.crt \
+        -extfile <(echo subjectAltName = IP:127.0.0.1)
     ```
 
 **Error:** `tls: client didn't provide a certificate`
@@ -163,7 +188,14 @@ clients using certs that are untrusted.
 Generate a client certificate to use:
 
 ```sh
-openssl req -x509 -nodes -newkey rsa:2048 -keyout client.key -out client.crt -days 3650 -subj "/C=GB/ST=London/L=London/O=Global Security/OU=IT Department/CN=*"
+openssl req \
+    -x509 \
+    -nodes \
+    -newkey rsa:2048 \
+    -keyout client.key \
+    -out client.crt \
+    -days 3650 \
+    -subj "/C=GB/ST=London/L=London/O=Global Security/OU=IT Department/CN=*"
 ```
 
 The client has to be configured to send a certificate with connection attempts:
