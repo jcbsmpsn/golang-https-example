@@ -175,8 +175,7 @@ There are two possible solutions.
 **Error:** `tls: client didn't provide a certificate`
 
 **Solution:** When the server code has the option set to authenticate client
-connections using the client certificate, the server will drop connections from
-clients using certs that are untrusted.
+connections using the client certificate, like this:
 
 ```diff
 -       cfg := &tls.Config{}
@@ -185,7 +184,12 @@ clients using certs that are untrusted.
 +       }
 ```
 
-Generate a client certificate to use:
+the server will drop connections from clients using certs that are untrusted,
+where trust is established by a relationship to one of the CAs that the TLS
+server knows about.
+
+In order to establish a connection, the client will have to present a trusted
+certificate. To start, generate a client certificate to use:
 
 ```sh
 openssl req \
@@ -198,7 +202,7 @@ openssl req \
     -subj "/C=GB/ST=London/L=London/O=Global Security/OU=IT Department/CN=*"
 ```
 
-The client has to be configured to send a certificate with connection attempts:
+Next, configure the client to send a certificate with connection attempts:
 
 ```diff
 +       cert, err := tls.LoadX509KeyPair("client.crt", "client.key")
@@ -216,7 +220,7 @@ The client has to be configured to send a certificate with connection attempts:
         }
 ```
 
-And the server has to be configured to trust the client certificate:
+Then, configure the server to trust the client certificate:
 
 ```diff
 +       caCert, err := ioutil.ReadFile("client.crt")
